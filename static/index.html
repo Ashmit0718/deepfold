@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepFold — ML Poker Outcome Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #2ea043;
+      --win-color: #238636;
+      --loss-color: #da3633;
+      --tie-color: #d29922;
+      --input-bg: #0d1117;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      padding: 24px 16px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      color: #58a6ff;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .card-panel {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #c9d1d9;
+    }
+
+    .section-title span.tag {
+      font-size: 0.75rem;
+      background: #21262d;
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .presets-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .preset-btn {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: #c9d1d9;
+      font-size: 0.8rem;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .preset-btn:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .card-box label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    select.card-select {
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    select.card-select:focus {
+      border-color: #58a6ff;
+    }
+
+    .opponents-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    .opponents-row label {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .opponents-row select {
+      background: #161b22;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .predict-btn {
+      width: 100%;
+      background: #238636;
+      color: white;
+      border: 1px solid rgba(240, 246, 252, 0.1);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .predict-btn:hover {
+      background: #2ea043;
+    }
+
+    .predict-btn:disabled {
+      background: #21262d;
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .error-banner {
+      display: none;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid rgba(248, 81, 73, 0.4);
+      color: #ff7b72;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    /* Results */
+    .results-panel {
+      display: none;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      animation: fadeIn 0.2s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .pred-badge {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .pred-Win { background: rgba(46, 160, 67, 0.2); color: #3fb950; border: 1px solid #238636; }
+    .pred-Loss { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid #da3633; }
+    .pred-Tie { background: rgba(210, 153, 34, 0.2); color: #e3b341; border: 1px solid #d29922; }
+
+    .hero-eval-box {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+    }
+
+    .hero-eval-box .title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .hero-eval-box .value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #58a6ff;
+    }
+
+    .prob-row {
+      margin-bottom: 14px;
+    }
+
+    .prob-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .prob-bar-track {
+      background: #0d1117;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.4s ease;
+    }
+
+    .bar-win { background-color: var(--win-color); }
+    .bar-loss { background-color: var(--loss-color); }
+    .bar-tie { background-color: var(--tie-color); }
+
+    .info-footer {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>DeepFold</h1>
+      <p>ML Showdown Outcome Predictor (Win / Loss / Tie) &bull; Texas Hold'em</p>
+    </header>
+
+    <div class="card-panel">
+      <!-- Presets -->
+      <div class="section-title">
+        <span>Quick Test Presets</span>
+        <span class="tag">Click to Load</span>
+      </div>
+      <div class="presets-bar">
+        <button class="preset-btn" onclick="loadPreset('royal')">Royal Flush</button>
+        <button class="preset-btn" onclick="loadPreset('quads')">Four Aces</button>
+        <button class="preset-btn" onclick="loadPreset('fullhouse')">Full House (A's full of K's)</button>
+        <button class="preset-btn" onclick="loadPreset('flush')">Nut Flush (A-high)</button>
+        <button class="preset-btn" onclick="loadPreset('pair')">One Pair (Jacks)</button>
+        <button class="preset-btn" onclick="loadPreset('weak')">Weak 7-2 Offsuit</button>
+      </div>
+
+      <!-- Hero Hole Cards -->
+      <div class="section-title">
+        <span>Hero's Hole Cards (2 cards)</span>
+      </div>
+      <div class="cards-grid">
+        <div class="card-box">
+          <label>Hole 1</label>
+          <select id="hero_c1" class="card-select" onchange="validateSelection()"></select>
+        </div>
+        <div class="card-box">
+          <label>Hole 2</label>
+          <select id="hero_c2" class="card-select" onchange="validateSelection()"></select>
+        </div>
+      </div>
+
+      <!-- Community Cards -->
+      <div class="section-title">
+        <span>Community Board (5 cards)</span>
+      </div>
+      <div class="cards-grid">
+        <div class="card-box">
+          <label>Flop 1</label>
+          <select id="comm_c1" class="card-select" onchange="validateSelection()"></select>
+        </div>
+        <div class="card-box">
+          <label>Flop 2</label>
+          <select id="comm_c2" class="card-select" onchange="validateSelection()"></select>
+        </div>
+        <div class="card-box">
+          <label>Flop 3</label>
+          <select id="comm_c3" class="card-select" onchange="validateSelection()"></select>
+        </div>
+        <div class="card-box">
+          <label>Turn</label>
+          <select id="comm_c4" class="card-select" onchange="validateSelection()"></select>
+        </div>
+        <div class="card-box">
+          <label>River</label>
+          <select id="comm_c5" class="card-select" onchange="validateSelection()"></select>
+        </div>
+      </div>
+
+      <!-- Opponent Count -->
+      <div class="opponents-row">
+        <label for="n_opponents">Number of Unknown Opponents at Table:</label>
+        <select id="n_opponents" onchange="validateSelection()">
+          <option value="2">2 Opponents (3 players total)</option>
+          <option value="3" selected>3 Opponents (4 players total)</option>
+          <option value="4">4 Opponents (5 players total)</option>
+          <option value="5">5 Opponents (6 players total)</option>
+        </select>
+      </div>
+
+      <div id="errorBanner" class="error-banner"></div>
+
+      <button id="predictBtn" class="predict-btn" onclick="predictOutcome()">
+        Predict Showdown Outcome
+      </button>
+    </div>
+
+    <!-- Prediction Results Box -->
+    <div id="resultsPanel" class="results-panel">
+      <div class="result-header">
+        <div>
+          <span style="font-size:0.85rem; color:var(--text-muted);">Predicted Outcome</span>
+          <div id="predictedLabel" class="pred-badge pred-Win" style="margin-top:4px;">Win</div>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size:0.85rem; color:var(--text-muted);">Opponents</span>
+          <div id="opponentsCountLabel" style="font-weight:600; font-size:1rem;">3 Opponents</div>
+        </div>
+      </div>
+
+      <div class="hero-eval-box">
+        <div class="title">Hero's Evaluated Best 5-Card Hand</div>
+        <div id="heroHandDesc" class="value">Full House, As full of Ks</div>
+      </div>
+
+      <!-- Win Bar -->
+      <div class="prob-row">
+        <div class="prob-info">
+          <span style="color:#3fb950;">Win Probability</span>
+          <span id="winProbText">0.0%</span>
+        </div>
+        <div class="prob-bar-track">
+          <div id="winBar" class="prob-bar-fill bar-win" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Loss Bar -->
+      <div class="prob-row">
+        <div class="prob-info">
+          <span style="color:#f85149;">Loss Probability</span>
+          <span id="lossProbText">0.0%</span>
+        </div>
+        <div class="prob-bar-track">
+          <div id="lossBar" class="prob-bar-fill bar-loss" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Tie Bar -->
+      <div class="prob-row">
+        <div class="prob-info">
+          <span style="color:#e3b341;">Tie Probability</span>
+          <span id="tieProbText">0.0%</span>
+        </div>
+        <div class="prob-bar-track">
+          <div id="tieBar" class="prob-bar-fill bar-tie" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <p class="info-footer">
+        Probabilities calculated by the DeepFold machine learning pipeline trained on 100,000 synthetic showdowns.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    const SUITS = [
+      { code: 's', symbol: '♠', color: '#e6edf3' },
+      { code: 'h', symbol: '♥', color: '#ff7b72' },
+      { code: 'd', symbol: '♦', color: '#58a6ff' },
+      { code: 'c', symbol: '♣', color: '#3fb950' }
+    ];
+
+    const CARD_SELECT_IDS = ['hero_c1', 'hero_c2', 'comm_c1', 'comm_c2', 'comm_c3', 'comm_c4', 'comm_c5'];
+
+    const PRESETS = {
+      royal: {
+        hero: ['Ah', 'Kh'],
+        comm: ['Qh', 'Jh', '10h', '2c', '7s'],
+        opponents: 3
+      },
+      quads: {
+        hero: ['Ah', 'As'],
+        comm: ['Ac', 'Ad', 'Kd', '2c', '7s'],
+        opponents: 3
+      },
+      fullhouse: {
+        hero: ['Ah', 'As'],
+        comm: ['Ac', 'Kh', 'Kd', '2c', '7s'],
+        opponents: 3
+      },
+      flush: {
+        hero: ['Ah', '9h'],
+        comm: ['4h', '7h', 'Kh', '2c', '8s'],
+        opponents: 3
+      },
+      pair: {
+        hero: ['Jh', '2d'],
+        comm: ['Js', '8c', '4d', '6s', '9c'],
+        opponents: 3
+      },
+      weak: {
+        hero: ['7h', '2c'],
+        comm: ['Ks', 'Qd', 'Jc', '10s', '9h'],
+        opponents: 4
+      }
+    };
+
+    function populateCardDropdowns() {
+      // Build 52 card options
+      const options = [];
+      // Group by rank descending
+      for (let r = RANKS.length - 1; r >= 0; r--) {
+        for (let s = 0; s < SUITS.length; s++) {
+          const rank = RANKS[r];
+          const suit = SUITS[s];
+          const val = `${rank}${suit.code}`;
+          const label = `${rank}${suit.symbol}`;
+          options.push({ val, label });
+        }
+      }
+
+      CARD_SELECT_IDS.forEach((id) => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '';
+        options.forEach(opt => {
+          const el = document.createElement('option');
+          el.value = opt.val;
+          el.textContent = opt.label;
+          sel.appendChild(el);
+        });
+      });
+    }
+
+    function loadPreset(key) {
+      const p = PRESETS[key];
+      if (!p) return;
+      document.getElementById('hero_c1').value = p.hero[0];
+      document.getElementById('hero_c2').value = p.hero[1];
+      document.getElementById('comm_c1').value = p.comm[0];
+      document.getElementById('comm_c2').value = p.comm[1];
+      document.getElementById('comm_c3').value = p.comm[2];
+      document.getElementById('comm_c4').value = p.comm[3];
+      document.getElementById('comm_c5').value = p.comm[4];
+      document.getElementById('n_opponents').value = p.opponents;
+      validateSelection();
+      predictOutcome();
+    }
+
+    function validateSelection() {
+      const selected = CARD_SELECT_IDS.map(id => document.getElementById(id).value);
+      const unique = new Set(selected);
+      const errBanner = document.getElementById('errorBanner');
+      const predictBtn = document.getElementById('predictBtn');
+
+      if (unique.size !== 7) {
+        errBanner.textContent = "Duplicate cards selected! In Texas Hold'em, all 7 cards must be unique.";
+        errBanner.style.display = 'block';
+        predictBtn.disabled = true;
+        return false;
+      } else {
+        errBanner.style.display = 'none';
+        predictBtn.disabled = false;
+        return true;
+      }
+    }
+
+    async function predictOutcome() {
+      if (!validateSelection()) return;
+
+      const heroCards = [
+        document.getElementById('hero_c1').value,
+        document.getElementById('hero_c2').value
+      ];
+      const commCards = [
+        document.getElementById('comm_c1').value,
+        document.getElementById('comm_c2').value,
+        document.getElementById('comm_c3').value,
+        document.getElementById('comm_c4').value,
+        document.getElementById('comm_c5').value
+      ];
+      const nOpponents = parseInt(document.getElementById('n_opponents').value, 10);
+
+      const predictBtn = document.getElementById('predictBtn');
+      predictBtn.disabled = true;
+      predictBtn.textContent = 'Calculating Model Probabilities...';
+
+      try {
+        const res = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hero_cards: heroCards,
+            community_cards: commCards,
+            n_opponents: nOpponents
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          alert('Error: ' + (data.error || 'Server error'));
+          return;
+        }
+
+        displayResults(data);
+      } catch (err) {
+        alert('Network error connecting to /api/predict: ' + err.message);
+      } finally {
+        predictBtn.disabled = false;
+        predictBtn.textContent = 'Predict Showdown Outcome';
+      }
+    }
+
+    function displayResults(data) {
+      const panel = document.getElementById('resultsPanel');
+      panel.style.display = 'block';
+
+      // Badge
+      const badge = document.getElementById('predictedLabel');
+      badge.textContent = data.prediction;
+      badge.className = `pred-badge pred-${data.prediction}`;
+
+      document.getElementById('opponentsCountLabel').textContent = `${data.n_opponents} Opponents`;
+      document.getElementById('heroHandDesc').textContent = data.hero_best_hand.description;
+
+      const winP = (data.probabilities.win * 100).toFixed(1);
+      const lossP = (data.probabilities.loss * 100).toFixed(1);
+      const tieP = (data.probabilities.tie * 100).toFixed(1);
+
+      document.getElementById('winProbText').textContent = `${winP}%`;
+      document.getElementById('winBar').style.width = `${winP}%`;
+
+      document.getElementById('lossProbText').textContent = `${lossP}%`;
+      document.getElementById('lossBar').style.width = `${lossP}%`;
+
+      document.getElementById('tieProbText').textContent = `${tieP}%`;
+      document.getElementById('tieBar').style.width = `${tieP}%`;
+
+      panel.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Init
+    window.onload = () => {
+      populateCardDropdowns();
+      loadPreset('royal');
+    };
+  </script>
+</body>
+</html>
